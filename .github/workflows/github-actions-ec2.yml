@@ -75,10 +75,10 @@ jobs:
       - name: Push Code to Production Server
         uses: easingthemes/ssh-deploy@main
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.STAGING_EC2_SSH_KEY }}
-          REMOTE_HOST: ${{ secrets.STAGING_HOST_DNS }}
-          REMOTE_USER: ${{ secrets.STAGING_USERNAME }}
-          TARGET: ${{ secrets.STAGING_TARGET_DIR }}
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_EC2_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.PRODUCTION_HOST_DNS }}
+          REMOTE_USER: ${{ secrets.PRODUCTION_USERNAME }}
+          TARGET: ${{ secrets.TARGET_DIR }}
 
       # Run Script to start Python Web App
       - name: Run StartUp Script (AWS SSM Send-Command)
@@ -88,7 +88,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          instance-ids: ${{ secrets.STAGING_INSTANCE_ID }}
+          instance-ids: ${{ secrets.PRODUCTION_INSTANCE_ID }}
           working-directory: ${{ secrets.TARGET_DIR }}
           command: sudo bash startup.sh
           comment: Demo CI/CD with AWS SSM Send Command!
