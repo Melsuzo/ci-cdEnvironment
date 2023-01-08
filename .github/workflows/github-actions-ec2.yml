@@ -1,0 +1,114 @@
+name: Push-to-EC2
+
+# Trigger deployment only on push to master branch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging EC2 on master branch push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the files
+        uses: actions/checkout@v2
+
+      # Push Code to Production Server
+      - name: Push Code to Staging Server
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_EC2_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.STAGING_HOST_DNS }}
+          REMOTE_USER: ${{ secrets.STAGING_USERNAME }}
+          TARGET: ${{ secrets.TARGET_DIR }}
+
+      # Run Script to start Python Web App
+      - name: Run StartUp Script (AWS SSM Send-Command)
+        uses: peterkimzz/aws-ssm-send-command@master
+        id: ssm
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          instance-ids: ${{ secrets.STAGING_INSTANCE_ID }}
+          working-directory: ${{ secrets.TARGET_DIR }}
+          command: sudo bash startup.sh
+          comment: Demo CI/CD with AWS SSM Send Command!
+
+      # Catch SSM outputs
+      - name: Get the outputs
+        run: echo "The Command id is ${{ steps.ssm.outputs.command-id }}"
+
+      # Confirm Application is up and running
+      - name: Check the deployed service Health on Staging Server
+        uses: jtalk/url-health-check-action@v3
+        with:
+          # Check the following URLs one by one sequentially
+          url: http://${{ secrets.STAGING_HOST_DNS }}
+          # Follow redirects, or just report success on 3xx status codes
+          follow-redirect: false # Optional, defaults to "false"
+          # Fail this action after this many failed attempts
+          max-attempts: 3 # Optional, defaults to 1
+          # Delay between retries
+          retry-delay: 5s # Optional, only applicable to max-attempts > 1
+          # Retry all errors, including 404. This option might trigger curl upgrade.
+          retry-all: false # Optional, defaults to "false"
+  
+  
+  # Deploy to Production
+  deploy-production:
+    needs: deploy-staging
+    name: Deploy to Production EC2 on master branch push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the files
+        uses: actions/checkout@v2
+
+
+      # Push Code to Production Server
+      - name: Push Code to Production Server
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_EC2_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.STAGING_HOST_DNS }}
+          REMOTE_USER: ${{ secrets.STAGING_USERNAME }}
+          TARGET: ${{ secrets.STAGING_TARGET_DIR }}
+
+      # Run Script to start Python Web App
+      - name: Run StartUp Script (AWS SSM Send-Command)
+        uses: peterkimzz/aws-ssm-send-command@master
+        id: ssm
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          instance-ids: ${{ secrets.STAGING_INSTANCE_ID }}
+          working-directory: ${{ secrets.TARGET_DIR }}
+          command: sudo bash startup.sh
+          comment: Demo CI/CD with AWS SSM Send Command!
+
+      # Catch SSM outputs
+      - name: Get the outputs
+        run: echo "The Command id is ${{ steps.ssm.outputs.command-id }}"
+
+
+      # Confirm Application is up and running
+      - name: Check the deployed service Health on Production Server
+        uses: jtalk/url-health-check-action@v3
+        with:
+          # Check the following URLs one by one sequentially
+          url: http://${{ secrets.STAGING_HOST_DNS }}
+          # Follow redirects, or just report success on 3xx status codes
+          follow-redirect: false # Optional, defaults to "false"
+          # Fail this action after this many failed attempts
+          max-attempts: 3 # Optional, defaults to 1
+          # Delay between retries
+          retry-delay: 5s # Optional, only applicable to max-attempts > 1
+          # Retry all errors, including 404. This option might trigger curl upgrade.
+          retry-all: false # Optional, defaults to "false"
