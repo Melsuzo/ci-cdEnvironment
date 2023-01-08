@@ -1,4 +1,4 @@
-from flask render_template
+from flask import render_template
 
 app = Flask(__name__)
 app.secretKey = "my_random_secret_keyy"
